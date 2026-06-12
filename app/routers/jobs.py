@@ -21,6 +21,21 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
     if os.path.getsize(dest) == 0:
         os.remove(dest)
         raise HTTPException(status_code=400, detail="File is empty.")
+    
+    # Validate CSV headers
+    import pandas as pd
+    try:
+        df_headers = pd.read_csv(dest, nrows=1)
+        cols = set([c.strip().lower().replace(" ", "_") for c in df_headers.columns])
+        required_cols = {"txn_id", "date", "merchant", "amount", "currency", "status", "category", "account_id"}
+        # If it doesn't match at least 3 expected columns, reject it
+        if len(cols.intersection(required_cols)) < 3:
+            os.remove(dest)
+            raise HTTPException(status_code=400, detail="Invalid CSV structure. Make sure headers contain transaction columns (txn_id, date, merchant, amount, etc.).")
+    except Exception as parse_err:
+        if os.path.exists(dest):
+            os.remove(dest)
+        raise HTTPException(status_code=400, detail=f"Malformed CSV file: {str(parse_err)}")
     job = Job(id=str(uuid.uuid4()), filename=file.filename, status="pending")
     db.add(job)
     db.commit()

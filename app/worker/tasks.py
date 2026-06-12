@@ -67,14 +67,15 @@ def process_csv(self, job_id, file_path):
     except Exception as e:
         logger.exception(f"[{job_id}] Failed: {e}")
         try:
+            db.rollback()
             job = db.query(Job).filter(Job.id == job_id).first()
             if job:
                 job.status = "failed"
                 job.error_message = str(e)
                 job.completed_at = utcnow()
                 db.commit()
-        except:
-            pass
+        except Exception as rollback_err:
+            logger.error(f"[{job_id}] Failed to update job status to failed: {rollback_err}")
     finally:
         db.close()
         try:

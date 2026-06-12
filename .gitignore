@@ -4,3 +4,5 @@ __pycache__/
 uploads/
 results.json
 uploads/
+test.db
+*.db
